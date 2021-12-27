@@ -1,0 +1,22 @@
+{
+  "name": "laya-zip",
+  "version": "1.0.3",
+  "description": "用于laya引擎的zip高速加载扩展库",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "laya-zip",
+    "laya",
+    "zip"
+  ],
+  "author": "lear",
+  "license": "ISC",
+  "dependencies": {
+    "jszip": "^3.7.1"
+  }
+}
