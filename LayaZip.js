@@ -13,6 +13,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const JSZip = require('jszip');
 class LayaZip {
+    static DeBug = true;
+    static ZIP = "ZIP";
+    static ReferenceCount = 0;
+    static PreLoadedMap = {};
+    static BasePathMode = 0;
+    static LazyMode = false;
+    static LazyFliter = ["lh", "ls"];
+
     static get Ins() {
         if (!LayaZip._resLoader) {
             LayaZip._resLoader = new LayaZip();
@@ -146,20 +154,67 @@ class LayaZip {
         // 基础加载文件
         LayaZip.logTime("===== Download Zip Timecost", loader.url, true);
         LayaZip.logTime("===== UnZip Dir Timecost", loader.url);
+
+        var loadBasePath = "";
+        var curUrl = loader.url;
+        if (LayaZip.BasePathMode == 0) {
+            // 使用压缩包路径作为解析基础路径(带文件夹)
+            var lastIndex = curUrl.lastIndexOf(".");
+            loadBasePath = curUrl.slice(0, lastIndex) + "/";
+        } else if (LayaZip.BasePathMode == 1) {
+            // 使用压缩包路径作为解析基础路径(不带文件夹)
+            var lastIndex = curUrl.lastIndexOf("/");
+            loadBasePath = curUrl.slice(0, lastIndex) + "/";
+        } else if (LayaZip.BasePathMode == 2) {
+            // 使用根路径作为解析基础路径
+            loadBasePath = "";
+        }
+
         JSZip.loadAsync(zipData, null).then(function (zip) {
-            zip.forEach(function (relativePath, file) {
+            zip.forEach(function (rawPath, file) {
+                let relativePath = loadBasePath + rawPath;
+                let relativePathUse = true;
                 if (!file.dir) {
-                    let cp = loader["_constructParams"];
-                    if (cp && cp.length) {
-                        // 如果有指定加载
-                        if (cp.indexOf(relativePath) > -1) {
+                    let constructParams = loader["_constructParams"];
+                    let propertyParams = loader["_propertyParams"];
+
+                    if (relativePathUse && LayaZip.LazyMode == true && relativePath) {
+                        let ext = (Laya.LoaderManager.createMap[Laya.Utils.getFilecompatibleExtension(rawPath)])?Laya.Utils.getFilecompatibleExtension(rawPath):Laya.Utils.getFileExtension(rawPath);
+                        if (LayaZip.LazyFliter && LayaZip.LazyFliter.length) {
+                            if (LayaZip.LazyFliter.indexOf(ext) > -1) {
+                                loader["BaseFileUrls"].push(relativePath);
+                                relativePathUse = false;
+                            }
+                        }
+                    } 
+                    
+                    if (relativePathUse && constructParams && constructParams.length) {
+                        // 加载配置的指定文件
+                        if (constructParams.indexOf(rawPath) > -1) {
                             loader["BaseFileUrls"].push(relativePath);
+                            relativePathUse = false;
                         }
                     }
-                    else {
-                        if (relativePath.indexOf("/") == -1) {
-                            loader["BaseFileUrls"].push(relativePath);
+                    
+                    if (relativePathUse && propertyParams && propertyParams.length) {
+                        // 加载配置的指定目录下的文件
+                        for (let i = 0; i < propertyParams.length; i++) {
+                            let fliterDir = propertyParams[i];
+                            let lastIndex = rawPath.indexOf(fliterDir);
+                            if (lastIndex > -1) {
+                                let loadPath = rawPath.replace(fliterDir, "")
+                                if (loadPath.indexOf("/") == -1) {
+                                    loader["BaseFileUrls"].push(relativePath);
+                                    relativePathUse = false;
+                                    break;
+                                }
+                            }
                         }
+                    } 
+                    
+                    if (relativePathUse && rawPath.indexOf("/") == -1) {
+                        loader["BaseFileUrls"].push(relativePath);
+                        relativePathUse = false;
                     }
                     loader["ParseZipDataCount"] += 1;
                     LayaZip.parseZipData(relativePath, file, loader);
@@ -240,7 +295,8 @@ class LayaZip {
     static getTypeFromUrl(url) {
         let type = Laya.Loader.getTypeFromUrl(url);
         if (!type) {
-            let ext = Laya.Utils.getFileExtension(url);
+
+            let ext = (Laya.LoaderManager.createMap[Laya.Utils.getFilecompatibleExtension(url)])?Laya.Utils.getFilecompatibleExtension(url):Laya.Utils.getFileExtension(url);
             switch (ext) {
                 case "lh":
                 case "ls":
@@ -255,8 +311,11 @@ class LayaZip {
                 case "ltc":
                     type = Laya.Loader.TEXTURECUBE;
                     break;
+                case "jpg":
+                case "jpeg":
                 case "bmp":
                 case "gif":
+                case "png":
                 case "dds":
                 case "ktx":
                 case "pvr":
@@ -268,11 +327,23 @@ class LayaZip {
                 case "lav":
                     type = Laya.Loader.AVATAR;
                     break;
+                case "ltc":
+                    type = Laya.Loader.TEXTURECUBE;
+                    break;
+                case "ltcb":
+                    type = Laya3D.TEXTURECUBEBIN;
+                    break;
                 case "thdata":
                     type = Laya.Loader.TERRAINHEIGHTDATA;
                     break;
                 case "zip":
                     type = LayaZip.ZIP;
+                    break;
+                case "ltcb.ls":
+                    type = Laya3D.TEXTURECUBEBIN;
+                    break;
+                case "lanit.ls":
+                    type = Laya.Loader.TEXTURE2D;
                     break;
                 default:
                     type = Laya.Loader.BUFFER;
@@ -282,10 +353,7 @@ class LayaZip {
         return type;
     }
 }
-LayaZip.DeBug = true;
-LayaZip.ZIP = "ZIP";
-LayaZip.ReferenceCount = 0;
-LayaZip.PreLoadedMap = {};
+
 //# sourceMappingURL=LayaZip.js.map
 exports.LayaZip = LayaZip;
 exports.default = LayaZip;
