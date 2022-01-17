@@ -1,6 +1,6 @@
 {
   "name": "laya-zip",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "description": "用于laya引擎的zip高速加载扩展库",
   "main": "index.js",
   "directories": {
