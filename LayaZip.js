@@ -21,7 +21,7 @@ class LayaZip {
     static LazyMode = false;
     static LazyFliter = ["lh", "ls"];
     static Platform = "web";
-    static Version = "1.0.6";
+    static Version = "1.0.7";
     static CacheZIPFile = true;
     static AutoSkipZip = true;
     static CacheZips = {};
